@@ -29,7 +29,9 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
     private SdlLog? _sdlLog;
     private bool _disposedValue;
 
-    public void Initialize()
+    public void Run() => Initialize();
+
+    private void Initialize()
     {
         SDL_SetMainReady();
         _sdlLog = new SdlLog(logger);

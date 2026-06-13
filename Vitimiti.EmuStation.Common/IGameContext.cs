@@ -21,5 +21,5 @@ namespace Vitimiti.EmuStation.Common;
 
 public interface IGameContext : IDisposable
 {
-    void Initialize();
+    void Run();
 }

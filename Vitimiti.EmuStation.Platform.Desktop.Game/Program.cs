@@ -48,3 +48,4 @@ using var services = new ServiceCollection()
     .BuildServiceProvider();
 
 using var gameContext = services.GetRequiredService<IGameContext>();
+gameContext.Run();
