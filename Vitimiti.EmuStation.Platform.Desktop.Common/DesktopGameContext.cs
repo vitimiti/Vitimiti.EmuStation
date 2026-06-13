@@ -17,6 +17,7 @@
 // DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using Vitimiti.EmuStation.Common;
 using Vitimiti.EmuStation.Platform.Desktop.Common.Internals.SdlSafeObjects;
@@ -31,6 +32,7 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
 
     public void Run() => Initialize();
 
+    [MemberNotNull(nameof(_sdlLog))]
     private void Initialize()
     {
         SDL_SetMainReady();
