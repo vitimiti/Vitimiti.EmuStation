@@ -22,6 +22,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
 using Microsoft.Extensions.Logging;
+using Microsoft.Win32.SafeHandles;
 
 namespace Vitimiti.EmuStation.Platform.Desktop.Common.NativeInterop;
 
@@ -55,6 +56,10 @@ internal static unsafe partial class Ffi
     #endregion // SDL_error.h
 
     #region SDL_init.h
+
+    [LibraryImport(LibSdl3)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial void SDL_Quit();
 
     [LibraryImport(LibSdl3, StringMarshalling = StringMarshalling.Utf8)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
@@ -200,11 +205,52 @@ internal static unsafe partial class Ffi
 
     #endregion // SDL_main.h
 
-    #region SDL_init.h
+    #region SDL_messagebox.h
+
+    public readonly record struct SDL_MessageBoxFlags(uint Value);
+
+    public static SDL_MessageBoxFlags SDL_MESSAGEBOX_ERROR => new(0x0000_0010U);
+
+    [LibraryImport(LibSdl3, StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool SDL_ShowSimpleMessageBox(
+        SDL_MessageBoxFlags flags,
+        string title,
+        string message,
+        SDL_Window window
+    );
+
+    #endregion // SDL_messagebox.h
+
+    #region SDL_video.h
+
+    [NativeMarshalling(typeof(SafeHandleMarshaller<SDL_Window>))]
+    public sealed class SDL_Window : SafeHandleZeroOrMinusOneIsInvalid
+    {
+        public SDL_Window()
+            : base(ownsHandle: true) => SetHandle(0);
+
+        protected override bool ReleaseHandle()
+        {
+            try
+            {
+                SDL_DestroyWindow(handle);
+            }
+            catch
+            {
+                // If we fail to destroy the window something went really wrong.
+                // Returning false will throw an exception, which is what we want in this case.
+                return false;
+            }
+
+            return true;
+        }
+    }
 
     [LibraryImport(LibSdl3)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
-    public static partial void SDL_Quit();
+    private static partial void SDL_DestroyWindow(nint window);
 
-    #endregion // SDL_init.h
+    #endregion // SDL_video.h
 }

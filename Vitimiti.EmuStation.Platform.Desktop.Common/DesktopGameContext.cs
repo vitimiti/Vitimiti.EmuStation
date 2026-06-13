@@ -21,6 +21,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Vitimiti.EmuStation.Common;
+using Vitimiti.EmuStation.Platform.Desktop.Common.Internals;
 using Vitimiti.EmuStation.Platform.Desktop.Common.Internals.SdlSafeObjects;
 using static Vitimiti.EmuStation.Platform.Desktop.Common.NativeInterop.Ffi;
 
@@ -40,6 +41,7 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
     [MemberNotNull(nameof(_sdlLog))]
     private void Initialize()
     {
+        SetUnhandledExceptionHandler();
         SDL_SetMainReady();
         _sdlLog = new SdlLog(logger);
 
@@ -53,6 +55,50 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
                 $"Failed to set application metadata: {SDL_GetError()}."
             );
         }
+    }
+
+    private void SetUnhandledExceptionHandler()
+    {
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            using SDL_Window nullWindow = new();
+            if (e.ExceptionObject is Exception ex)
+            {
+                Log.UnhandledException(logger, ex);
+                try
+                {
+                    SDL_ShowSimpleMessageBox(
+                        SDL_MESSAGEBOX_ERROR,
+                        "Unhandled Exception",
+                        $"{ex}",
+                        nullWindow
+                    );
+                }
+                catch (Exception innerEx)
+                {
+                    // If we fail to show the message box, we can't do much else. Just log the error and continue.
+                    Log.UnhandledException(logger, innerEx);
+                }
+            }
+            else
+            {
+                Log.UnhandledUnknownException(logger, e.ExceptionObject);
+                try
+                {
+                    SDL_ShowSimpleMessageBox(
+                        SDL_MESSAGEBOX_ERROR,
+                        "Unhandled Exception",
+                        $"An unhandled, unknown exception object was thrown: {e.ExceptionObject}",
+                        nullWindow
+                    );
+                }
+                catch (Exception innerEx)
+                {
+                    // If we fail to show the message box, we can't do much else. Just log the error and continue.
+                    Log.UnhandledException(logger, innerEx);
+                }
+            }
+        };
     }
 
     private static string? GetAssemblyMetadata(Assembly assembly, string key) =>
