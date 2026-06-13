@@ -29,7 +29,7 @@ var configuration = new ConfigurationBuilder()
     .AddJsonFile("appsettings.Internal.json", optional: true, reloadOnChange: true)
     .Build();
 
-var loggerFactory = LoggerFactory.Create(builder =>
+using var loggerFactory = LoggerFactory.Create(builder =>
 {
     builder.AddConfiguration(configuration.GetSection("Logging"));
     builder.AddSimpleConsole(options =>
