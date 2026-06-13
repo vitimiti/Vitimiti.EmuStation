@@ -3,4 +3,5 @@
   <Folder Name="/Platform/Desktop/">
     <Project Path="Vitimiti.EmuStation.Platform.Desktop.Game/Vitimiti.EmuStation.Platform.Desktop.Game.csproj" />
   </Folder>
+  <Project Path="Vitimiti.EmuStation.Common/Vitimiti.EmuStation.Common.csproj" />
 </Solution>
