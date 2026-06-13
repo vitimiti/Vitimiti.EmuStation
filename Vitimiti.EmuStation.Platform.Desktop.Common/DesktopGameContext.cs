@@ -18,6 +18,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Vitimiti.EmuStation.Common;
 using Vitimiti.EmuStation.Platform.Desktop.Common.Internals.SdlSafeObjects;
@@ -27,6 +28,10 @@ namespace Vitimiti.EmuStation.Platform.Desktop.Common;
 
 public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameContext
 {
+    private const string AppNameMetadataKey = "AppName";
+    private const string AppVersionMetadataKey = "AppVersion";
+    private const string AppIdentifierMetadataKey = "AppIdentifier";
+
     private SdlLog? _sdlLog;
     private bool _disposedValue;
 
@@ -37,7 +42,25 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
     {
         SDL_SetMainReady();
         _sdlLog = new SdlLog(logger);
+
+        var metadataAssembly = typeof(DesktopGameContext).Assembly;
+        var appName = GetAssemblyMetadata(metadataAssembly, AppNameMetadataKey);
+        var appVersion = GetAssemblyMetadata(metadataAssembly, AppVersionMetadataKey);
+        var appIdentifier = GetAssemblyMetadata(metadataAssembly, AppIdentifierMetadataKey);
+        if (!SDL_SetAppMetadata(appName, appVersion, appIdentifier))
+        {
+            throw new InvalidOperationException(
+                $"Failed to set application metadata: {SDL_GetError()}."
+            );
+        }
     }
+
+    private static string? GetAssemblyMetadata(Assembly assembly, string key) =>
+        assembly
+            .GetCustomAttributes<AssemblyMetadataAttribute>()
+            .Where(metadata => string.Equals(metadata.Key, key, StringComparison.Ordinal))
+            .Select(metadata => metadata.Value)
+            .FirstOrDefault();
 
     protected virtual void Dispose(bool disposing)
     {

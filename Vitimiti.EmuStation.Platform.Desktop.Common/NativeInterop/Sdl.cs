@@ -20,12 +20,53 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.Marshalling;
 using Microsoft.Extensions.Logging;
 
 namespace Vitimiti.EmuStation.Platform.Desktop.Common.NativeInterop;
 
 internal static unsafe partial class Ffi
 {
+    #region Marshallers
+
+    [CustomMarshaller(
+        typeof(string),
+        MarshalMode.ManagedToUnmanagedOut,
+        typeof(UnownedUtf8StringMarshaller)
+    )]
+    private static class UnownedUtf8StringMarshaller
+    {
+        public static string? ConvertToManaged(byte* unmanaged) =>
+            Utf8StringMarshaller.ConvertToManaged(unmanaged);
+    }
+
+    #endregion
+
+    #region SDL_error.h
+
+    [LibraryImport(
+        LibSdl3,
+        StringMarshalling = StringMarshalling.Custom,
+        StringMarshallingCustomType = typeof(UnownedUtf8StringMarshaller)
+    )]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial string SDL_GetError();
+
+    #endregion // SDL_error.h
+
+    #region SDL_init.h
+
+    [LibraryImport(LibSdl3, StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool SDL_SetAppMetadata(
+        string? appName,
+        string? appVersion,
+        string? appIdentifier
+    );
+
+    #endregion // SDL_init.h
+
     #region SDL_log.h
 
     public readonly record struct SDL_LogCategory(int Value)
