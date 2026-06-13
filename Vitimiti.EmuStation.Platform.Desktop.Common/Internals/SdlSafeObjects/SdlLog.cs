@@ -38,6 +38,7 @@ internal sealed partial class SdlLog : IDisposable
 
     public SdlLog(ILogger logger)
     {
+        SDL_SetLogPriorities(SDL_LogPriority.FromLogger(logger));
         _handle = GCHandle.Alloc(
             new LogFunction(
                 (category, priority, message) =>
