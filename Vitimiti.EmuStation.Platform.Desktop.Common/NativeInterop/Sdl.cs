@@ -57,6 +57,20 @@ internal static unsafe partial class Ffi
 
     #region SDL_init.h
 
+    public readonly record struct SDL_InitFlags(uint Value)
+    {
+        public static SDL_InitFlags operator |(SDL_InitFlags left, SDL_InitFlags right) =>
+            new(left.Value | right.Value);
+    }
+
+    public static SDL_InitFlags SDL_INIT_VIDEO => new(0x0000_0010U);
+    public static SDL_InitFlags SDL_INIT_AUDIO => new(0x0000_0020U);
+
+    [LibraryImport(LibSdl3)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool SDL_InitSubSystem(SDL_InitFlags flags);
+
     [LibraryImport(LibSdl3)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
     public static partial void SDL_Quit();
@@ -138,13 +152,47 @@ internal static unsafe partial class Ffi
     public static SDL_LogCategory SDL_LOG_CATEGORY_TEST => new(8);
     public static SDL_LogCategory SDL_LOG_CATEGORY_GPU => new(9);
 
-    [SuppressMessage(
-        "Style",
-        "IDE0046:Convert to conditional expression",
-        Justification = "Consecutive ternary operators are less readable than a series of if statements."
-    )]
     public readonly record struct SDL_LogPriority(int Value)
     {
+        [SuppressMessage(
+            "Style",
+            "IDE0046:Convert to conditional expression",
+            Justification = "Consecutive ternary operators are less readable than a series of if statements."
+        )]
+        public static SDL_LogPriority FromLogger(ILogger logger)
+        {
+            if (logger.IsEnabled(LogLevel.Trace))
+            {
+                return SDL_LOG_PRIORITY_TRACE;
+            }
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                return SDL_LOG_PRIORITY_DEBUG;
+            }
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                return SDL_LOG_PRIORITY_INFO;
+            }
+            if (logger.IsEnabled(LogLevel.Warning))
+            {
+                return SDL_LOG_PRIORITY_WARN;
+            }
+            if (logger.IsEnabled(LogLevel.Error))
+            {
+                return SDL_LOG_PRIORITY_ERROR;
+            }
+            if (logger.IsEnabled(LogLevel.Critical))
+            {
+                return SDL_LOG_PRIORITY_CRITICAL;
+            }
+            return SDL_LOG_PRIORITY_INVALID;
+        }
+
+        [SuppressMessage(
+            "Style",
+            "IDE0046:Convert to conditional expression",
+            Justification = "Consecutive ternary operators are less readable than a series of if statements."
+        )]
         public readonly LogLevel ToLogLevel()
         {
             if (this == SDL_LOG_PRIORITY_TRACE || this == SDL_LOG_PRIORITY_VERBOSE)

@@ -38,23 +38,20 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
 
     public void Run() => Initialize();
 
+    #region Initialization
+
+    private static string? GetAssemblyMetadata(Assembly assembly, string key) =>
+        assembly
+            .GetCustomAttributes<AssemblyMetadataAttribute>()
+            .Where(metadata => string.Equals(metadata.Key, key, StringComparison.Ordinal))
+            .Select(metadata => metadata.Value)
+            .FirstOrDefault();
+
     [MemberNotNull(nameof(_sdlLog))]
     private void Initialize()
     {
         SetUnhandledExceptionHandler();
-        SDL_SetMainReady();
-        _sdlLog = new SdlLog(logger);
-
-        var metadataAssembly = typeof(DesktopGameContext).Assembly;
-        var appName = GetAssemblyMetadata(metadataAssembly, AppNameMetadataKey);
-        var appVersion = GetAssemblyMetadata(metadataAssembly, AppVersionMetadataKey);
-        var appIdentifier = GetAssemblyMetadata(metadataAssembly, AppIdentifierMetadataKey);
-        if (!SDL_SetAppMetadata(appName, appVersion, appIdentifier))
-        {
-            throw new InvalidOperationException(
-                $"Failed to set application metadata: {SDL_GetError()}."
-            );
-        }
+        InitializeSdl();
     }
 
     private void SetUnhandledExceptionHandler()
@@ -101,12 +98,34 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
         };
     }
 
-    private static string? GetAssemblyMetadata(Assembly assembly, string key) =>
-        assembly
-            .GetCustomAttributes<AssemblyMetadataAttribute>()
-            .Where(metadata => string.Equals(metadata.Key, key, StringComparison.Ordinal))
-            .Select(metadata => metadata.Value)
-            .FirstOrDefault();
+    #endregion
+
+    [MemberNotNull(nameof(_sdlLog))]
+    private void InitializeSdl()
+    {
+        SDL_SetMainReady();
+        _sdlLog = new SdlLog(logger);
+
+        var metadataAssembly = typeof(DesktopGameContext).Assembly;
+        var appName = GetAssemblyMetadata(metadataAssembly, AppNameMetadataKey);
+        var appVersion = GetAssemblyMetadata(metadataAssembly, AppVersionMetadataKey);
+        var appIdentifier = GetAssemblyMetadata(metadataAssembly, AppIdentifierMetadataKey);
+        if (!SDL_SetAppMetadata(appName, appVersion, appIdentifier))
+        {
+            throw new InvalidOperationException(
+                $"Failed to set application metadata: {SDL_GetError()}."
+            );
+        }
+
+        if (!SDL_InitSubSystem(SDL_INIT_VIDEO | SDL_INIT_AUDIO))
+        {
+            throw new InvalidOperationException(
+                $"Failed to initialize SDL subsystems: {SDL_GetError()}."
+            );
+        }
+    }
+
+    #region IDisposable Support
 
     protected virtual void Dispose(bool disposing)
     {
@@ -138,4 +157,6 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
         Dispose(disposing: true);
         GC.SuppressFinalize(this);
     }
+
+    #endregion // IDisposable Support
 }
