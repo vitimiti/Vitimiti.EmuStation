@@ -1,2 +1,7 @@
 <Solution>
+  <Folder Name="/Platform/" />
+  <Folder Name="/Platform/Desktop/">
+    <Project Path="Vitimiti.EmuStation.Platform.Desktop.Game/Vitimiti.EmuStation.Platform.Desktop.Game.csproj" />
+  </Folder>
+  <Project Path="Vitimiti.EmuStation/Vitimiti.EmuStation.csproj" />
 </Solution>
