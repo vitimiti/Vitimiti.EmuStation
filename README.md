@@ -27,7 +27,7 @@ While the project is written on C#, native libraries are required to comunicate 
 
 ### Desktop
 
-- SDL3
+- [SDL3 v3.4.10](https://github.com/libsdl-org/SDL/tree/release-3.4.10)
   - Windowing
   - Rendering
   - Input
