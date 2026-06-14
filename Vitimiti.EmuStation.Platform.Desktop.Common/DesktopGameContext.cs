@@ -265,14 +265,14 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
             return;
         }
 
+        if (_gpuDevice is not null && _window is not null)
+        {
+            SDL_WaitForGPUIdle(_gpuDevice);
+            SDL_ReleaseWindowFromGPUDevice(_gpuDevice, _window);
+        }
+
         if (disposing)
         {
-            if (_gpuDevice is not null && _window is not null)
-            {
-                SDL_WaitForGPUIdle(_gpuDevice);
-                SDL_ReleaseWindowFromGPUDevice(_gpuDevice, _window);
-            }
-
             _window?.Dispose();
             _gpuDevice?.Dispose();
             _sdlLog?.Dispose();
