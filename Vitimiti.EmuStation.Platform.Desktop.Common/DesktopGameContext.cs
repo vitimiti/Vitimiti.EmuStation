@@ -34,6 +34,7 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
     private const string AppIdentifierMetadataKey = "AppIdentifier";
 
     private SdlLog? _sdlLog;
+    private SDL_Window? _window;
     private bool _disposedValue;
 
     public void Run() => Initialize();
@@ -47,7 +48,7 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
             .Select(metadata => metadata.Value)
             .FirstOrDefault();
 
-    [MemberNotNull(nameof(_sdlLog))]
+    [MemberNotNull(nameof(_sdlLog), nameof(_window))]
     private void Initialize()
     {
         SetUnhandledExceptionHandler();
@@ -100,7 +101,7 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
 
     #endregion
 
-    [MemberNotNull(nameof(_sdlLog))]
+    [MemberNotNull(nameof(_sdlLog), nameof(_window))]
     private void InitializeSdl()
     {
         SDL_SetMainReady();
@@ -123,6 +124,17 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
                 $"Failed to initialize SDL subsystems: {SDL_GetError()}."
             );
         }
+
+        _window = SDL_CreateWindow(
+            appName ?? "Vitimiti.EmuStation",
+            1280,
+            720,
+            SDL_WINDOW_FULLSCREEN
+        );
+        if (_window.IsInvalid)
+        {
+            throw new InvalidOperationException($"Failed to create SDL window: {SDL_GetError()}.");
+        }
     }
 
     #region IDisposable Support
@@ -136,8 +148,11 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
 
         if (disposing)
         {
+            _window?.Dispose();
             _sdlLog?.Dispose();
         }
+
+        _window = null;
 
         SDL_Quit();
         _sdlLog = null;

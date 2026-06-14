@@ -273,6 +273,10 @@ internal static unsafe partial class Ffi
 
     #region SDL_video.h
 
+    public readonly record struct SDL_WindowFlags(ulong Value);
+
+    public static SDL_WindowFlags SDL_WINDOW_FULLSCREEN => new(0x0000_0000_0000_0001UL);
+
     [NativeMarshalling(typeof(SafeHandleMarshaller<SDL_Window>))]
     public sealed class SDL_Window : SafeHandleZeroOrMinusOneIsInvalid
     {
@@ -295,6 +299,15 @@ internal static unsafe partial class Ffi
             return true;
         }
     }
+
+    [LibraryImport(LibSdl3, StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial SDL_Window SDL_CreateWindow(
+        string title,
+        int w,
+        int h,
+        SDL_WindowFlags flags
+    );
 
     [LibraryImport(LibSdl3)]
     [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
