@@ -34,10 +34,20 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
     private const string AppIdentifierMetadataKey = "AppIdentifier";
 
     private SdlLog? _sdlLog;
+    private SDL_GPUDevice? _gpuDevice;
     private SDL_Window? _window;
+    private bool _running = true;
     private bool _disposedValue;
 
-    public void Run() => Initialize();
+    public void Run()
+    {
+        Initialize();
+        while (_running)
+        {
+            ProcessSdlEvents();
+            Render();
+        }
+    }
 
     #region Initialization
 
@@ -48,7 +58,7 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
             .Select(metadata => metadata.Value)
             .FirstOrDefault();
 
-    [MemberNotNull(nameof(_sdlLog), nameof(_window))]
+    [MemberNotNull(nameof(_sdlLog), nameof(_window), nameof(_gpuDevice))]
     private void Initialize()
     {
         SetUnhandledExceptionHandler();
@@ -99,9 +109,7 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
         };
     }
 
-    #endregion
-
-    [MemberNotNull(nameof(_sdlLog), nameof(_window))]
+    [MemberNotNull(nameof(_sdlLog), nameof(_window), nameof(_gpuDevice))]
     private void InitializeSdl()
     {
         SDL_SetMainReady();
@@ -125,6 +133,27 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
             );
         }
 
+#if DEBUG || INTERNAL
+        const bool debugMode = true;
+#else
+        const bool debugMode = false;
+#endif
+        _gpuDevice = SDL_CreateGPUDevice(
+            SDL_GPU_SHADERFORMAT_SPIRV
+                | SDL_GPU_SHADERFORMAT_DXBC
+                | SDL_GPU_SHADERFORMAT_DXIL
+                | SDL_GPU_SHADERFORMAT_MSL
+                | SDL_GPU_SHADERFORMAT_METALLIB,
+            debugMode,
+            name: null
+        );
+        if (_gpuDevice.IsInvalid)
+        {
+            throw new InvalidOperationException(
+                $"Failed to create SDL GPU device: {SDL_GetError()}."
+            );
+        }
+
         _window = SDL_CreateWindow(
             appName ?? "Vitimiti.EmuStation",
             1280,
@@ -135,7 +164,97 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
         {
             throw new InvalidOperationException($"Failed to create SDL window: {SDL_GetError()}.");
         }
+
+        if (!SDL_ClaimWindowForGPUDevice(_gpuDevice, _window))
+        {
+            throw new InvalidOperationException(
+                $"Failed to claim SDL window for GPU device: {SDL_GetError()}."
+            );
+        }
     }
+
+    #endregion
+
+    #region Events
+
+    private void ProcessSdlEvents()
+    {
+        while (SDL_PollEvent(out SDL_Event e))
+        {
+            if (e.Type == SDL_EVENT_QUIT)
+            {
+                _running = false;
+            }
+        }
+    }
+
+    #endregion // Events
+
+    #region Rendering
+
+    private void Render()
+    {
+        if (_gpuDevice is null)
+        {
+            throw new InvalidOperationException("GPU device is not initialized.");
+        }
+
+        if (_window is null)
+        {
+            throw new InvalidOperationException("Window is not initialized.");
+        }
+
+        var commandBuffer = SDL_AcquireGPUCommandBuffer(_gpuDevice);
+        if (commandBuffer.IsInvalid)
+        {
+            throw new InvalidOperationException(
+                $"Failed to acquire GPU command buffer: {SDL_GetError()}."
+            );
+        }
+
+        if (
+            !SDL_WaitAndAcquireGPUSwapchainTexture(
+                commandBuffer,
+                _window,
+                out var swapChainTexture,
+                out _,
+                out _
+            )
+        )
+        {
+            return; // This is not always an error, it can happen if the window is minimized or not visible.
+        }
+
+        SDL_GPUColorTargetInfo colorTargetInfo = new()
+        {
+            Texture = swapChainTexture,
+            ClearColor = new SDL_FColor()
+            {
+                R = 45 / 255F,
+                G = 40 / 255F,
+                B = 58 / 255F,
+                A = 1F,
+            },
+            LoadOp = SDL_GPU_LOADOP_CLEAR,
+            StoreOp = SDL_GPU_STOREOP_STORE,
+        };
+
+        SDL_GPURenderPass renderPass;
+        unsafe
+        {
+            renderPass = SDL_BeginGPURenderPass(commandBuffer, &colorTargetInfo, 1, null);
+        }
+        SDL_EndGPURenderPass(renderPass);
+
+        if (!SDL_SubmitGPUCommandBuffer(commandBuffer))
+        {
+            throw new InvalidOperationException(
+                $"Failed to submit GPU command buffer: {SDL_GetError()}."
+            );
+        }
+    }
+
+    #endregion // Rendering
 
     #region IDisposable Support
 
@@ -148,11 +267,19 @@ public class DesktopGameContext(ILogger<DesktopGameContext> logger) : IGameConte
 
         if (disposing)
         {
+            if (_gpuDevice is not null && _window is not null)
+            {
+                SDL_WaitForGPUIdle(_gpuDevice);
+                SDL_ReleaseWindowFromGPUDevice(_gpuDevice, _window);
+            }
+
             _window?.Dispose();
+            _gpuDevice?.Dispose();
             _sdlLog?.Dispose();
         }
 
         _window = null;
+        _gpuDevice = null;
 
         SDL_Quit();
         _sdlLog = null;

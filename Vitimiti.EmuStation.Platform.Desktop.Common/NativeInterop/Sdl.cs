@@ -55,6 +55,196 @@ internal static unsafe partial class Ffi
 
     #endregion // SDL_error.h
 
+    #region SDL_events.h
+
+    public readonly record struct SDL_EventType(uint Value);
+
+    public static SDL_EventType SDL_EVENT_QUIT => new(0x0000_0100U);
+
+    [StructLayout(LayoutKind.Explicit)]
+    public struct SDL_Event
+    {
+        [FieldOffset(0)]
+        public SDL_EventType Type;
+
+        [FieldOffset(0)]
+        private fixed byte _padding[128];
+    }
+
+    [LibraryImport(LibSdl3)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool SDL_PollEvent(out SDL_Event @event);
+
+    #endregion // SDL_events.h
+
+    #region SDL_gpu.h
+
+    [NativeMarshalling(typeof(SafeHandleMarshaller<SDL_GPUDevice>))]
+    public sealed class SDL_GPUDevice : SafeHandleZeroOrMinusOneIsInvalid
+    {
+        public SDL_GPUDevice()
+            : base(ownsHandle: true) => SetHandle(0);
+
+        protected override bool ReleaseHandle()
+        {
+            try
+            {
+                SDL_DestroyGPUDevice(handle);
+            }
+            catch
+            {
+                // If we fail to destroy the GPU device something went really wrong.
+                // Returning false will throw an exception, which is what we want in this case.
+                return false;
+            }
+
+            return true;
+        }
+    }
+
+    public readonly record struct SDL_GPUCommandBuffer(nint Handle)
+    {
+        public bool IsInvalid => Handle == 0;
+    }
+
+    public readonly record struct SDL_GPUTexture(nint Handle)
+    {
+        public bool IsInvalid => Handle == 0;
+    }
+
+    public readonly record struct SDL_GPURenderPass(nint Handle)
+    {
+        public bool IsInvalid => Handle == 0;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SDL_GPUColorTargetInfo
+    {
+        public SDL_GPUTexture Texture;
+        public uint MipLevel;
+        public uint LayerOrDepthPlane;
+        public SDL_FColor ClearColor;
+        public SDL_GPULoadOp LoadOp;
+        public SDL_GPUStoreOp StoreOp;
+        public SDL_GPUTexture ResolveTexture;
+        public uint ResolveMipLevel;
+        public uint ResolveLayer;
+
+        [MarshalAs(UnmanagedType.I1)]
+        public bool Cycle;
+
+        [MarshalAs(UnmanagedType.I1)]
+        public bool CycleResolveTexture;
+
+        private readonly byte _padding1;
+        private readonly byte _padding2;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SDL_GPUDepthStencilTargetInfo
+    {
+        public SDL_GPUTexture Texture;
+        public float ClearDepth;
+        public SDL_GPULoadOp LoadOp;
+        public SDL_GPUStoreOp StoreOp;
+        public SDL_GPULoadOp StencilLoadOp;
+        public SDL_GPUStoreOp StencilStoreOp;
+
+        [MarshalAs(UnmanagedType.I1)]
+        public bool Cycle;
+
+        public byte ClearStencil;
+        public byte MipLevel;
+        public byte Layer;
+    }
+
+    public readonly record struct SDL_GPUShaderFormat(uint Value)
+    {
+        public static SDL_GPUShaderFormat operator |(
+            SDL_GPUShaderFormat left,
+            SDL_GPUShaderFormat right
+        ) => new(left.Value | right.Value);
+    }
+
+    public static SDL_GPUShaderFormat SDL_GPU_SHADERFORMAT_SPIRV => new(1U << 1);
+    public static SDL_GPUShaderFormat SDL_GPU_SHADERFORMAT_DXBC => new(1U << 2);
+    public static SDL_GPUShaderFormat SDL_GPU_SHADERFORMAT_DXIL => new(1U << 3);
+    public static SDL_GPUShaderFormat SDL_GPU_SHADERFORMAT_MSL => new(1U << 4);
+    public static SDL_GPUShaderFormat SDL_GPU_SHADERFORMAT_METALLIB => new(1U << 5);
+
+    public readonly record struct SDL_GPULoadOp(int Value);
+
+    public static SDL_GPULoadOp SDL_GPU_LOADOP_CLEAR => new(1);
+
+    public readonly record struct SDL_GPUStoreOp(int Value);
+
+    public static SDL_GPUStoreOp SDL_GPU_STOREOP_STORE => new(0);
+
+    [LibraryImport(LibSdl3, StringMarshalling = StringMarshalling.Utf8)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial SDL_GPUDevice SDL_CreateGPUDevice(
+        SDL_GPUShaderFormat formatFlags,
+        [MarshalAs(UnmanagedType.I1)] bool debugMode,
+        string? name
+    );
+
+    [LibraryImport(LibSdl3)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool SDL_ClaimWindowForGPUDevice(SDL_GPUDevice device, SDL_Window window);
+
+    [LibraryImport(LibSdl3)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial SDL_GPUCommandBuffer SDL_AcquireGPUCommandBuffer(SDL_GPUDevice device);
+
+    [LibraryImport(LibSdl3)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool SDL_WaitAndAcquireGPUSwapchainTexture(
+        SDL_GPUCommandBuffer commandBuffer,
+        SDL_Window window,
+        out SDL_GPUTexture texture,
+        out uint swapchainTextureWidth,
+        out uint swapchainTextureHeight
+    );
+
+    [LibraryImport(LibSdl3)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial SDL_GPURenderPass SDL_BeginGPURenderPass(
+        SDL_GPUCommandBuffer commandBuffer,
+        SDL_GPUColorTargetInfo* colorTargetInfos,
+        uint numColorTargets,
+        SDL_GPUDepthStencilTargetInfo* depthStencilTargetInfo
+    );
+
+    [LibraryImport(LibSdl3)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial void SDL_EndGPURenderPass(SDL_GPURenderPass renderPass);
+
+    [LibraryImport(LibSdl3)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool SDL_SubmitGPUCommandBuffer(SDL_GPUCommandBuffer commandBuffer);
+
+    [LibraryImport(LibSdl3)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static partial bool SDL_WaitForGPUIdle(SDL_GPUDevice device);
+
+    [LibraryImport(LibSdl3)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    public static partial void SDL_ReleaseWindowFromGPUDevice(
+        SDL_GPUDevice device,
+        SDL_Window window
+    );
+
+    [LibraryImport(LibSdl3)]
+    [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+    private static partial void SDL_DestroyGPUDevice(nint device);
+
+    #endregion // SDL_gpu.h
+
     #region SDL_init.h
 
     public readonly record struct SDL_InitFlags(uint Value)
@@ -270,6 +460,19 @@ internal static unsafe partial class Ffi
     );
 
     #endregion // SDL_messagebox.h
+
+    #region SDL_pixels.h
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct SDL_FColor
+    {
+        public float R;
+        public float G;
+        public float B;
+        public float A;
+    }
+
+    #endregion // SDL_pixels.h
 
     #region SDL_video.h
 
