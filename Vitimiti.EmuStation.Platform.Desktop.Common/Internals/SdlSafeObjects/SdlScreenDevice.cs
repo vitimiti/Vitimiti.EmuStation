@@ -135,6 +135,8 @@ internal sealed class SdlScreenDevice : IDisposable
         }
     }
 
+    #region IDisposable Support
+
     private void Dispose(bool disposing)
     {
         if (_disposedValue)
@@ -172,4 +174,6 @@ internal sealed class SdlScreenDevice : IDisposable
         Dispose(disposing: true);
         GC.SuppressFinalize(this);
     }
+
+    #endregion // IDisposable Support
 }
